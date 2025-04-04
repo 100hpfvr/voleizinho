@@ -322,7 +322,6 @@ import json
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from twilio.rest import Client
-import pathlib
 
 # Configurações do Twilio
 ACCOUNT_SID = "AC26b02e2da624219242572a471e7fccab"
@@ -331,10 +330,11 @@ TWILIO_WHATSAPP_NUMBER = "whatsapp:+14155238886"  # Número do Twilio para Whats
 DESTINATION_NUMBER = "whatsapp:+555193402351"  # Seu número ou do grupo
 
 # Caminho do arquivo JSON
+import pathlib
 
-BASE_DIR = pathlib.Path(__file__).parent
-JSON_FILE_PATH = BASE_DIR / "volei_agenda.json"
-# JSON_FILE_PATH = r'C:\Users\mateus\Documents\Projetos\voleizinho\volei_agenda.json'
+# BASE_DIR = pathlib.Path(__file__).parent
+# ARQUIVO_JSON = BASE_DIR / "volei_agenda.json"
+JSON_FILE_PATH = r'/mount/src/voleizinho/volei_agenda.json'
 ultimo_estado = ""
 ultima_modificacao = 0
 
