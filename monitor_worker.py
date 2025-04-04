@@ -1,3 +1,4 @@
+import logging
 import time
 import json
 from watchdog.observers import Observer
@@ -6,12 +7,14 @@ from twilio.rest import Client
 
 # Configurações do Twilio
 ACCOUNT_SID = "AC26b02e2da624219242572a471e7fccab"
-AUTH_TOKEN = "bbd70e13a34d8663d2ff21fe57f09aa5"
+AUTH_TOKEN = "6bcd094983599a970961c42eb6b24858"
 TWILIO_WHATSAPP_NUMBER = "whatsapp:+14155238886"  # Número do Twilio para WhatsApp
 DESTINATION_NUMBER = "whatsapp:+555193402351"  # Seu número ou do grupo
 
 # Caminho do arquivo JSON
 JSON_FILE_PATH = r'C:\Users\mateus\Documents\Projetos\voleizinho\volei_agenda.json'
+ultimo_estado = ""
+ultima_modificacao = 0
 
 # Função para enviar mensagens pelo Twilio
 client = Client(ACCOUNT_SID, AUTH_TOKEN)
@@ -39,12 +42,18 @@ def obter_lista_presenca():
 
 class MonitorJSON(FileSystemEventHandler):
     def on_modified(self, event):
+        global ultimo_estado, ultima_modificacao
         if event.src_path.endswith("volei_agenda.json"):
-            print("Arquivo JSON modificado! Atualizando presença...")
-            mensagem = obter_lista_presenca()
-            if mensagem:
-                enviar_mensagem_twilio(mensagem)
-
+            agora = time.time()
+            if agora - ultima_modificacao < 2:
+                # Debounce: ignora eventos múltiplos em menos de 2 segundos
+                return
+            ultima_modificacao = agora
+            logging.info("Arquivo JSON modificado! Verificando presença...")
+            nova_mensagem = obter_lista_presenca()
+            if nova_mensagem and nova_mensagem != ultimo_estado:
+                ultimo_estado = nova_mensagem
+                enviar_mensagem_twilio(nova_mensagem)
 if __name__ == "__main__":
     event_handler = MonitorJSON()
     observer = Observer()
