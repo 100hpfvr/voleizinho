@@ -33,6 +33,7 @@ st.set_page_config(
 # Configurações iniciais
 data_file = "volei_agenda.json"
 quadras_file = "volei_quadras.json"
+
 QUADRAS_DISPONIVEIS = ["11", "12", "13", "14", "15", "16", "17", "18", "19", "24", "25", "26"]
 
 # Funções de carregamento/salvamento
@@ -43,6 +44,7 @@ def load_data():
     return {}
 
 def save_data(data):
+    print(data_file)
     with open(data_file, "w") as f:
         json.dump(data, f, indent=4)
 
