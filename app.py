@@ -1,9 +1,22 @@
 import streamlit as st
 import datetime
-import json
 import os
 from datetime import timedelta
+import logging
+import time
+import json
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+from twilio.rest import Client
+import pathlib
 
+# Configurações do Twilio
+ACCOUNT_SID = "AC26b02e2da624219242572a471e7fccab"
+AUTH_TOKEN = "6bcd094983599a970961c42eb6b24858"
+TWILIO_WHATSAPP_NUMBER = "whatsapp:+14155238886"  # Número do Twilio para WhatsApp
+DESTINATION_NUMBER = "whatsapp:+555193402351"  # Seu número ou do grupo
+
+# Caminho do arquivo JSON
 # Configurações da página
 st.set_page_config(
     page_title="VOLEIZINHO PRA CURAR ONDE DÓI",
@@ -316,21 +329,6 @@ with tab2:
                 st.session_state['show_confirm_reset'] = False
                 st.rerun()
 
-import logging
-import time
-import json
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
-from twilio.rest import Client
-
-# Configurações do Twilio
-ACCOUNT_SID = "AC26b02e2da624219242572a471e7fccab"
-AUTH_TOKEN = "6bcd094983599a970961c42eb6b24858"
-TWILIO_WHATSAPP_NUMBER = "whatsapp:+14155238886"  # Número do Twilio para WhatsApp
-DESTINATION_NUMBER = "whatsapp:+555193402351"  # Seu número ou do grupo
-
-# Caminho do arquivo JSON
-import pathlib
 
 BASE_DIR = pathlib.Path(__file__).parent
 JSON_FILE_PATH = BASE_DIR / "volei_agenda.json"
