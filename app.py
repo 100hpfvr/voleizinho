@@ -15,6 +15,13 @@ ACCOUNT_SID = "AC26b02e2da624219242572a471e7fccab"
 AUTH_TOKEN = "6bcd094983599a970961c42eb6b24858"
 TWILIO_WHATSAPP_NUMBER = "whatsapp:+14155238886"  # Número do Twilio para WhatsApp
 DESTINATION_NUMBER = "whatsapp:+555193402351"  # Seu número ou do grupo
+BASE_DIR = pathlib.Path(__file__).parent / "bot"
+JSON_FILE_PATH = BASE_DIR / "volei_agenda.json"
+data_file = BASE_DIR / "volei_agenda.json"
+quadras_file = BASE_DIR / "volei_quadras.json"
+last_reset_file = BASE_DIR / "last_reset_date.txt"
+ultimo_estado = ""
+ultima_modificacao = 0
 
 # Caminho do arquivo JSON
 # Configurações da página
@@ -330,11 +337,6 @@ with tab2:
                 st.rerun()
 
 
-BASE_DIR = pathlib.Path(__file__).parent
-JSON_FILE_PATH = BASE_DIR / "volei_agenda.json"
-# JSON_FILE_PATH = r'C:\Users\mateus\Documents\Projetos\voleizinho\volei_agenda.json'
-ultimo_estado = ""
-ultima_modificacao = 0
 
 # Função para enviar mensagens pelo Twilio
 client = Client(ACCOUNT_SID, AUTH_TOKEN)
