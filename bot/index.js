@@ -11,7 +11,7 @@ const client = new Client({
         args: ["--no-sandbox"],
     },
 });
-const dataFilePath = "./bot/volei_agenda.json";
+const dataFilePath = "./volei_agenda.json";
 
 
 // Gera QR Code no terminal para login
