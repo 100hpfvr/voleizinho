@@ -1,4 +1,3 @@
 streamlit
 datetime 
-twilio
-watchdog
+firebase-admin
