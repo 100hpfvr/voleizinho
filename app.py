@@ -27,20 +27,36 @@ DIA_ESTRUTURA = {
 }
 
 # Funções de carregamento/salvamento
-def load_data():
-    if os.path.exists(data_file):
-        with open(data_file, "r") as f:
-            data = json.load(f)
-            # Garante que todos os dias estão presentes
-            for dia in DIAS_SEMANA:
-                if dia not in data:
-                    data[dia] = DIA_ESTRUTURA.copy()
-            return data
-    return {}
+# def load_data():
+#     if os.path.exists(data_file):
+#         with open(data_file, "r") as f:
+#             data = json.load(f)
+#             # Garante que todos os dias estão presentes
+#             for dia in DIAS_SEMANA:
+#                 if dia not in data:
+#                     data[dia] = DIA_ESTRUTURA.copy()
+#             return data
+#     return {}
+#
+# def save_data(data):
+#     with open(data_file, "w") as f:
+#         json.dump(data, f, indent=4)
 
 def save_data(data):
-    with open(data_file, "w") as f:
-        json.dump(data, f, indent=4)
+    for dia, info in data.items():
+        doc_ref = db.collection("agenda").document(dia)
+        doc_ref.set(info)
+
+def load_data():
+    docs = db.collection("agenda").stream()
+    agenda = {}
+    for doc in docs:
+        data = doc.to_dict()
+        data["Titulares"] = sorted(data.get("Titulares", []))
+        data["Reservas"] = sorted(data.get("Reservas", []))
+        data["Substitutos"] = sorted(data.get("Substitutos", []))
+        agenda[doc.id] = data
+    return agenda
 
 def load_quadras():
     if os.path.exists(quadras_file):
