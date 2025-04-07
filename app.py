@@ -4,6 +4,15 @@ import json
 import os
 from datetime import timedelta
 
+import firebase_admin
+from firebase_admin import credentials, firestore
+
+cred = credentials.Certificate("firebase/firebase_config_py.json")
+if not firebase_admin._apps:
+    firebase_admin.initialize_app(cred)
+
+db = firestore.client()
+
 # Configurações da página
 st.set_page_config(
     page_title="VOLEIZINHO PRA CURAR ONDE DÓI",
