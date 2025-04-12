@@ -1,0 +1,18 @@
+# Secrets
+secrets.toml
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+.venv/
+
+# IDE
+.idea/
+.vscode/
+
+# System files
+.DS_Store
+Thumbs.db

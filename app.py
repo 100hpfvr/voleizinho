@@ -1,7 +1,8 @@
 import streamlit as st
-import datetime
 import json
 import os
+import toml
+import datetime
 from datetime import timedelta
 
 # Configurações da página
@@ -15,16 +16,16 @@ firebase_initialized = False
 try:
     import firebase_admin
     from firebase_admin import credentials, firestore
-    
-    # Verifica se o arquivo de credenciais existe
-    if os.path.exists("firebase_config_py.json"):
-        cred = credentials.Certificate("firebase_config_py.json")
+
+    # Carrega credenciais do secrets.toml
+    if 'firebase' in st.secrets:
+        cred = credentials.Certificate(st.secrets['firebase'])
         if not firebase_admin._apps:
             firebase_admin.initialize_app(cred)
         db = firestore.client()
         firebase_initialized = True
     else:
-        st.error("Arquivo de configuração do Firebase não encontrado.")
+        st.error("Configuração do Firebase não encontrada nos secrets.")
 except Exception as e:
     st.error(f"Erro ao inicializar o Firebase: {str(e)}")
 
@@ -58,7 +59,7 @@ def load_data():
                     data["Reservas"] = sorted(data.get("Reservas", []))
                     data["Substitutos"] = sorted(data.get("Substitutos", []))
                     agenda[doc.id] = data
-            
+
             # Se conseguiu carregar dados do Firebase
             if agenda:
                 # Garante que todos os dias estão presentes
@@ -68,7 +69,7 @@ def load_data():
                 return agenda
         except Exception as e:
             st.warning(f"Erro ao carregar dados do Firebase: {str(e)}. Usando dados locais.")
-    
+
     # Fallback para arquivo local
     if os.path.exists(data_file):
         try:
@@ -81,7 +82,7 @@ def load_data():
                 return data
         except Exception as e:
             st.warning(f"Erro ao carregar arquivo local: {str(e)}")
-    
+
     # Se tudo falhar, retorna estrutura padrão
     return {dia: DIA_ESTRUTURA.copy() for dia in DIAS_SEMANA}
 
@@ -94,13 +95,29 @@ def save_data(data):
                 doc_ref.set(info)
         except Exception as e:
             st.warning(f"Erro ao salvar no Firebase: {str(e)}. Salvando apenas localmente.")
-    
+
     # Sempre salva localmente como backup
     try:
         with open(data_file, "w") as f:
             json.dump(data, f, indent=4)
     except Exception as e:
         st.error(f"Erro ao salvar arquivo local: {str(e)}")
+
+def load_secrets():
+    if os.path.exists("secrets.toml"):
+        try:
+            with open("secrets.toml", "r") as f:
+                return toml.load(f)
+        except Exception as e:
+            st.warning(f"Erro ao carregar secrets.toml: {str(e)}")
+    return {}
+
+def save_secrets(data):
+    try:
+        with open("secrets.toml", "w") as f:
+            toml.dump(data, f)
+    except Exception as e:
+        st.error(f"Erro ao salvar secrets.toml: {str(e)}")
 
 def delete_player(day, name, role):
     if firebase_initialized:
@@ -125,7 +142,7 @@ def load_quadras():
             quadras = {}
             for doc in docs:
                 quadras[doc.id] = doc.to_dict().get("quadra")
-            
+
             # Se conseguiu carregar dados do Firebase
             if quadras:
                 # Garante que todos os dias estão presentes
@@ -135,7 +152,7 @@ def load_quadras():
                 return quadras
         except Exception as e:
             st.warning(f"Erro ao carregar quadras do Firebase: {str(e)}. Usando dados locais.")
-    
+
     # Fallback para arquivo local
     if os.path.exists(quadras_file):
         try:
@@ -148,7 +165,7 @@ def load_quadras():
                 return data
         except Exception as e:
             st.warning(f"Erro ao carregar arquivo local de quadras: {str(e)}")
-    
+
     # Se tudo falhar, retorna estrutura padrão
     return {dia: None for dia in DIAS_SEMANA}
 
@@ -161,7 +178,7 @@ def save_quadras(data):
                 doc_ref.set({"quadra": quadra})
         except Exception as e:
             st.warning(f"Erro ao salvar quadras no Firebase: {str(e)}. Salvando apenas localmente.")
-    
+
     # Sempre salva localmente como backup
     try:
         with open(quadras_file, "w") as f:
@@ -175,13 +192,13 @@ def should_reset():
     if now.weekday() == 6 and now.hour >= 19:
         last_reset_file = "last_reset_date.txt"
         today_date = now.date().isoformat()
-        
+
         if os.path.exists(last_reset_file):
             with open(last_reset_file, "r") as f:
                 last_reset = f.read().strip()
             if last_reset == today_date:
                 return False
-        
+
         with open(last_reset_file, "w") as f:
             f.write(today_date)
         return True
@@ -191,7 +208,7 @@ def should_reset():
 def reset_week_data():
     st.session_state.volei_agenda = {dia: DIA_ESTRUTURA.copy() for dia in DIAS_SEMANA}
     st.session_state.quadras = {dia: None for dia in DIAS_SEMANA}
-    
+
     # Atualiza no Firebase
     if firebase_initialized:
         try:
@@ -200,7 +217,7 @@ def reset_week_data():
                 db.collection("quadras").document(dia).set({"quadra": None})
         except Exception as e:
             st.warning(f"Erro ao resetar dados no Firebase: {str(e)}. Resetando apenas localmente.")
-    
+
     # Sempre salva localmente como backup
     try:
         with open(data_file, "w") as f:
@@ -220,7 +237,7 @@ def initialize_data():
             # Garante que todos os dias estão presentes
             st.session_state.volei_agenda = {dia: loaded_data.get(dia, DIA_ESTRUTURA.copy()) for dia in DIAS_SEMANA}
             save_data(st.session_state.volei_agenda)
-        
+
         if 'quadras' not in st.session_state:
             st.session_state.quadras = load_quadras()
             if not st.session_state.quadras:
@@ -230,10 +247,10 @@ def initialize_data():
 # Função para remover jogador
 def remove_name(day, name, role):
     day_data = st.session_state.volei_agenda[day]
-    
+
     if name in day_data[role]:
         day_data[role].remove(name)
-        
+
         if role == "Titulares" and day_data["Reservas"]:
             promoted = day_data["Reservas"].pop(0)
             day_data["Titulares"].append(promoted)
@@ -243,7 +260,7 @@ def remove_name(day, name, role):
         elif role == "Reservas" and day_data["Substitutos"]:
             promoted = day_data["Substitutos"].pop(0)
             day_data["Reservas"].append(promoted)
-        
+
         # Atualiza no Firebase
         if firebase_initialized:
             try:
@@ -251,20 +268,20 @@ def remove_name(day, name, role):
                 doc_ref.set(day_data)
             except Exception as e:
                 st.warning(f"Erro ao remover jogador no Firebase: {str(e)}. Atualizando apenas localmente.")
-        
+
         # Sempre salva localmente como backup
         try:
             save_data(st.session_state.volei_agenda)
         except Exception as e:
             st.error(f"Erro ao salvar arquivo local após remover jogador: {str(e)}")
-        
+
         st.rerun()
 
 # Função para remover quadra
 def remove_quadra(day):
     st.session_state.quadras[day] = None
     st.session_state.volei_agenda[day]['Quadra'] = None
-    
+
     # Atualiza no Firebase
     if firebase_initialized:
         try:
@@ -272,14 +289,14 @@ def remove_quadra(day):
             db.collection("agenda").document(day).update({"Quadra": None})
         except Exception as e:
             st.warning(f"Erro ao remover quadra no Firebase: {str(e)}. Atualizando apenas localmente.")
-    
+
     # Sempre salva localmente como backup
     try:
         save_quadras(st.session_state.quadras)
         save_data(st.session_state.volei_agenda)
     except Exception as e:
         st.error(f"Erro ao salvar arquivos locais após remover quadra: {str(e)}")
-    
+
     st.rerun()
 
 # Inicializa os dados
@@ -329,7 +346,7 @@ try:
 
     with tab2:
         st.title("Listas da Semana 🏐")
-        
+
         # Seção para adicionar jogadores
         st.subheader("Adicionar Jogador")
         days_selected = st.multiselect(
@@ -337,9 +354,9 @@ try:
             options=DIAS_SEMANA,
             key="multiselect_dias_jogar"
         )
-        
+
         name = st.text_input("Seu nome:", key="input_nome_jogador")
-        
+
         if st.button("Entrar na Lista", key="botao_entrar_lista") and name:
             for day in days_selected:
                 day_data = st.session_state.volei_agenda[day]
@@ -352,7 +369,7 @@ try:
                         day_data['Reservas'].append(name)
                     else:
                         day_data['Substitutos'].append(name)
-                    
+
                     # Atualiza no Firebase
                     if firebase_initialized:
                         try:
@@ -360,31 +377,31 @@ try:
                             doc_ref.set(day_data)
                         except Exception as e:
                             st.warning(f"Erro ao adicionar jogador no Firebase: {str(e)}. Atualizando apenas localmente.")
-                    
+
                     st.success(f"{name} adicionado à lista de {day}!")
-            
+
             # Sempre salva localmente como backup
             try:
                 save_data(st.session_state.volei_agenda)
             except Exception as e:
                 st.error(f"Erro ao salvar arquivo local após adicionar jogador: {str(e)}")
-            
+
             st.rerun()
-        
+
         # Exibição das listas por dia
         tabs = st.tabs(DIAS_SEMANA)
-        
+
         for tab, day in zip(tabs, DIAS_SEMANA):
             with tab:
                 current_quadra = st.session_state.quadras.get(day)
                 data = st.session_state.volei_agenda[day]
-                
+
                 # Layout com duas colunas: Listas e Quadra
                 col1, col2 = st.columns([3, 1])
-                
+
                 with col1:
                     st.markdown(f"**{day}**")
-                    
+
                     # Listas de jogadores
                     st.write(f"**Titulares ({len(data['Titulares'])}/15):**")
                     for i, name in enumerate(data['Titulares']):
@@ -392,7 +409,7 @@ try:
                         cols[0].write(f"{i+1}. {name}")
                         if cols[1].button("❌", key=f"rem_tit_{day}_{name}"):
                             st.session_state[f"show_confirm_tit_{day}_{name}"] = True
-                    
+
                     # Popover de confirmação para titulares
                     for i, name in enumerate(data['Titulares']):
                         if st.session_state.get(f"show_confirm_tit_{day}_{name}"):
@@ -404,14 +421,14 @@ try:
                                 if st.button("Cancelar", key=f"confirm_no_tit_{day}_{name}"):
                                     del st.session_state[f"show_confirm_tit_{day}_{name}"]
                                     st.rerun()
-                    
+
                     st.write(f"**Reservas ({len(data['Reservas'])}/3):**")
                     for i, name in enumerate(data['Reservas']):
                         cols = st.columns([4, 1])
                         cols[0].write(f"{i+1}. {name}")
                         if cols[1].button("❌", key=f"rem_res_{day}_{name}"):
                             st.session_state[f"show_confirm_res_{day}_{name}"] = True
-                    
+
                     for i, name in enumerate(data['Reservas']):
                         if st.session_state.get(f"show_confirm_res_{day}_{name}"):
                             with st.popover(f"Confirmar remoção de {name}"):
@@ -422,14 +439,14 @@ try:
                                 if st.button("Cancelar", key=f"confirm_no_res_{day}_{name}"):
                                     del st.session_state[f"show_confirm_res_{day}_{name}"]
                                     st.rerun()
-                    
+
                     st.write("**Substitutos:**")
                     for i, name in enumerate(data['Substitutos']):
                         cols = st.columns([4, 1])
                         cols[0].write(f"{i+1}. {name}")
                         if cols[1].button("❌", key=f"rem_sub_{day}_{name}"):
                             st.session_state[f"show_confirm_sub_{day}_{name}"] = True
-                    
+
                     for i, name in enumerate(data['Substitutos']):
                         if st.session_state.get(f"show_confirm_sub_{day}_{name}"):
                             with st.popover(f"Confirmar remoção de {name}"):
@@ -440,15 +457,15 @@ try:
                                 if st.button("Cancelar", key=f"confirm_no_sub_{day}_{name}"):
                                     del st.session_state[f"show_confirm_sub_{day}_{name}"]
                                     st.rerun()
-                
+
                 with col2:
                     st.markdown("**Quadra**")
-                    
+
                     if current_quadra:
                         st.write(f"Quadra selecionada: **{current_quadra}**")
                         if st.button("❌ Remover", key=f"remove_quadra_{day}"):
                             st.session_state[f"show_confirm_quadra_{day}"] = True
-                        
+
                         if st.session_state.get(f"show_confirm_quadra_{day}"):
                             with st.popover(f"Confirmar remoção da quadra"):
                                 st.write("Tem certeza que deseja remover esta quadra?")
@@ -465,11 +482,11 @@ try:
                             index=0,
                             key=f"quadra_select_{day}"
                         )
-                        
+
                         if quadra_selecionada and st.button("Selecionar", key=f"select_quadra_{day}"):
                             st.session_state.quadras[day] = quadra_selecionada
                             st.session_state.volei_agenda[day]['Quadra'] = quadra_selecionada
-                            
+
                             # Atualiza no Firebase
                             if firebase_initialized:
                                 try:
@@ -477,20 +494,20 @@ try:
                                     db.collection("agenda").document(day).update({"Quadra": quadra_selecionada})
                                 except Exception as e:
                                     st.warning(f"Erro ao selecionar quadra no Firebase: {str(e)}. Atualizando apenas localmente.")
-                            
+
                             # Sempre salva localmente como backup
                             try:
                                 save_quadras(st.session_state.quadras)
                                 save_data(st.session_state.volei_agenda)
                             except Exception as e:
                                 st.error(f"Erro ao salvar arquivos locais após selecionar quadra: {str(e)}")
-                            
+
                             st.rerun()
-        
+
         # Botão de reset manual com confirmação
         if st.button("Resetar Todas as Listas (Apenas Admin)", key="botao_reset_admin"):
             st.session_state['show_confirm_reset'] = True
-        
+
         if st.session_state.get('show_confirm_reset'):
             with st.popover("Confirmar reset"):
                 st.warning("Tem certeza que deseja resetar TODAS as listas?")
