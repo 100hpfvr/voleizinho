@@ -14,8 +14,8 @@ st.set_page_config(
 USER_SECRETS_PATH = os.path.expanduser('~'), '.streamlit', 'secrets.toml'
 
 # Mostra informações de debug
-st.write(f"Caminho do secrets.toml sendo usado: {USER_SECRETS_PATH}")
-st.write(f"Arquivo existe? {os.path.exists(USER_SECRETS_PATH)}")
+# st.write(f"Caminho do secrets.toml sendo usado: {USER_SECRETS_PATH}")
+# st.write(f"Arquivo existe? {os.path.exists(USER_SECRETS_PATH)}")
 
 
 # Força o Streamlit a usar o caminho correto
@@ -28,20 +28,20 @@ if not hasattr(st, '_secrets'):
         if not hasattr(self, '_secrets_loaded'):
             try:
                 import toml
-                if os.path.exists(USER_SECRETS_PATH):
-                    with open(USER_SECRETS_PATH) as f:
-                        self._secrets = toml.load(f)
-                        self._secrets['_file_path'] = USER_SECRETS_PATH
-                        st.success(f"Configurações carregadas de: {USER_SECRETS_PATH}")
-                else:
-                    self._secrets = {}
-                    st.warning(f"Arquivo secrets.toml não encontrado em: {USER_SECRETS_PATH}")
+                # if os.path.exists(USER_SECRETS_PATH):
+                with open(USER_SECRETS_PATH) as f:
+                    self._secrets = toml.load(f)
+                    self._secrets['_file_path'] = USER_SECRETS_PATH
+                    st.success(f"Configurações carregadas de: {USER_SECRETS_PATH}")
+                # else:
+                #     self._secrets = {}
+                #     st.warning(f"Arquivo secrets.toml não encontrado em: {USER_SECRETS_PATH}")
             except Exception as e:
                 st.error(f"Erro ao carregar secrets.toml: {e}")
                 self._secrets = {}
             self._secrets_loaded = True
         return self._secrets
-    
+
     st.secrets = secrets.__get__(st)
 
 # Mostrar o caminho onde o Streamlit procura o arquivo secrets.toml
