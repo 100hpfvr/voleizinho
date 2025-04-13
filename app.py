@@ -3,13 +3,13 @@ import json
 import os
 import toml
 import datetime
-from datetime import timedelta
+from pathlib import Path
 
 st.set_page_config(
     page_title="VOLEIZINHO PRA CURAR ONDE DÓI",
     page_icon=":volleyball:"
 )
-USER_SECRETS_PATH = os.path.expanduser('~') + '\\.streamlit' + '\\secrets.toml'
+USER_SECRETS_PATH = Path.home() / '.streamlit' / 'secrets.toml'
 
 # Força o Streamlit a usar o caminho correto
 if not hasattr(st, '_secrets'):
