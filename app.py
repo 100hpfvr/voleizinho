@@ -69,9 +69,8 @@ try:
     import firebase_admin
     from firebase_admin import credentials, firestore
 
-    if 'firebase' in st.secrets:
-        firebase_config = dict(st.secrets["gcp_service_account"])
-        st.info("Configurações do Firebase carregadas de: st.secrets['gcp_service_account']")
+    firebase_config = dict(st.secrets["gcp_service_account"])
+    st.info("Configurações do Firebase carregadas de: st.secrets['gcp_service_account']")
     firebase_config["private_key"] = firebase_config["private_key"].replace("\\n", "\n")
     cred = credentials.Certificate(firebase_config)
     if not firebase_admin._apps:
