@@ -46,17 +46,19 @@ try:
     import firebase_admin
     from firebase_admin import credentials, firestore
 
-    firebase_config = dict(st.secrets["gcp_service_account"])
-    st.info("Configurações do Firebase carregadas de: st.secrets['firebase']")
-    firebase_config["private_key"] = firebase_config["private_key"].replace("\\n", "\n")
-    cred = credentials.Certificate(firebase_config)
+    # Verifica se já está inicializado para evitar múltiplas inicializações
     if not firebase_admin._apps:
+        firebase_config = dict(st.secrets["gcp_service_account"])
+        firebase_config["private_key"] = firebase_config["private_key"].replace("\\n", "\n")
+        cred = credentials.Certificate(firebase_config)
         firebase_admin.initialize_app(cred)
+
     db = firestore.client()
     firebase_initialized = True
-
+    st.success("Firebase inicializado com sucesso!")
 except Exception as e:
-    st.error(f"Erro ao inicializar o Firebase: {str(e)}")
+    st.error(f"Erro ao inicializar Firebase: {e}")
+    firebase_initialized = False
 
 # Configurações iniciais
 data_file = "volei_agenda.json"
@@ -80,7 +82,8 @@ def load_data():
     # Tenta carregar do Firebase primeiro
     if firebase_initialized:
         try:
-            docs = db.collection("agenda").stream()
+            # Usa get() em vez de stream() para evitar problemas de event loop
+            docs = db.collection("agenda").get()
             agenda = {}
             for doc in docs:
                 data = doc.to_dict()
@@ -98,8 +101,7 @@ def load_data():
                         agenda[dia] = DIA_ESTRUTURA.copy()
                 return agenda
         except Exception as e:
-            st.warning(f"Erro ao carregar dados do Firebase: {str(e)}. Usando dados locais.")
-
+            st.error(f"Erro ao carregar dados do Firebase: {str(e)}")
     # Fallback para arquivo local
     if os.path.exists(data_file):
         try:
