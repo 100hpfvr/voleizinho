@@ -1,7 +1,4 @@
 import streamlit as st
-import json
-import os
-import toml
 import datetime
 from pathlib import Path
 
@@ -14,7 +11,6 @@ USER_SECRETS_PATH = Path.home() / '.streamlit' / 'secrets.toml'
 # Força o Streamlit a usar o caminho correto
 if not hasattr(st, '_secrets'):
     st._secrets = st.secrets  # Backup do original
-
 
     # Sobrescreve com nossa implementação que usa o caminho do usuário
     @property
@@ -61,8 +57,6 @@ except Exception as e:
     firebase_initialized = False
 
 # Configurações iniciais
-data_file = "volei_agenda.json"
-quadras_file = "volei_quadras.json"
 QUADRAS_DISPONIVEIS = ["11", "12", "13", "14", "15", "16", "17", "18", "19", "24", "25", "26"]
 
 # Dias da semana fixos
@@ -79,10 +73,9 @@ DIA_ESTRUTURA = {
 
 # Funções de carregamento/salvamento com fallback para arquivos locais
 def load_data():
-    # Tenta carregar do Firebase primeiro
+    # Carrega dados do Firebase
     if firebase_initialized:
         try:
-            # Usa get() em vez de stream() para evitar problemas de event loop
             docs = db.collection("agenda").get()
             agenda = {}
             for doc in docs:
@@ -102,77 +95,24 @@ def load_data():
                 return agenda
         except Exception as e:
             st.error(f"Erro ao carregar dados do Firebase: {str(e)}")
-    # Fallback para arquivo local
-    if os.path.exists(data_file):
-        try:
-            with open(data_file, "r") as f:
-                data = json.load(f)
-                # Garante que todos os dias estão presentes
-                for dia in DIAS_SEMANA:
-                    if dia not in data:
-                        data[dia] = DIA_ESTRUTURA.copy()
-                return data
-        except Exception as e:
-            st.warning(f"Erro ao carregar arquivo local: {str(e)}")
 
-    # Se tudo falhar, retorna estrutura padrão
+    # Se não conseguiu carregar do Firebase, retorna estrutura padrão
     return {dia: DIA_ESTRUTURA.copy() for dia in DIAS_SEMANA}
 
 
 def save_data(data):
-    # Tenta salvar no Firebase primeiro
+    # Salva no Firebase
     if firebase_initialized:
         try:
             for dia, info in data.items():
                 doc_ref = db.collection("agenda").document(dia)
                 doc_ref.set(info)
         except Exception as e:
-            st.warning(f"Erro ao salvar no Firebase: {str(e)}. Salvando apenas localmente.")
-
-    # Sempre salva localmente como backup
-    try:
-        with open(data_file, "w") as f:
-            json.dump(data, f, indent=4)
-    except Exception as e:
-        st.error(f"Erro ao salvar arquivo local: {str(e)}")
-
-
-def load_secrets():
-    if os.path.exists("secrets.toml"):
-        try:
-            with open("secrets.toml", "r") as f:
-                return toml.load(f)
-        except Exception as e:
-            st.warning(f"Erro ao carregar secrets.toml: {str(e)}")
-    return {}
-
-
-def save_secrets(data):
-    try:
-        with open("secrets.toml", "w") as f:
-            toml.dump(data, f)
-    except Exception as e:
-        st.error(f"Erro ao salvar secrets.toml: {str(e)}")
-
-
-def delete_player(day, name, role):
-    if firebase_initialized:
-        try:
-            doc_ref = db.collection("agenda").document(day)
-            doc = doc_ref.get()
-            if doc.exists:
-                data = doc.to_dict()
-                if name in data.get(role, []):
-                    data[role].remove(name)
-                    doc_ref.set(data)
-                    return True
-        except Exception as e:
-            st.warning(f"Erro ao excluir jogador do Firebase: {str(e)}")
-    return False
+            st.error(f"Erro ao salvar no Firebase: {str(e)}")
 
 
 def load_quadras():
-    # Tenta carregar do Firebase primeiro
+    # Carrega quadras do Firebase
     if firebase_initialized:
         try:
             docs = db.collection("quadras").stream()
@@ -188,41 +128,10 @@ def load_quadras():
                         quadras[dia] = None
                 return quadras
         except Exception as e:
-            st.warning(f"Erro ao carregar quadras do Firebase: {str(e)}. Usando dados locais.")
+            st.error(f"Erro ao carregar quadras do Firebase: {str(e)}")
 
-    # Fallback para arquivo local
-    if os.path.exists(quadras_file):
-        try:
-            with open(quadras_file, "r") as f:
-                data = json.load(f)
-                # Garante que todos os dias estão presentes
-                for dia in DIAS_SEMANA:
-                    if dia not in data:
-                        data[dia] = None
-                return data
-        except Exception as e:
-            st.warning(f"Erro ao carregar arquivo local de quadras: {str(e)}")
-
-    # Se tudo falhar, retorna estrutura padrão
+    # Se não conseguiu carregar do Firebase, retorna estrutura padrão
     return {dia: None for dia in DIAS_SEMANA}
-
-
-def save_quadras(data):
-    # Tenta salvar no Firebase primeiro
-    if firebase_initialized:
-        try:
-            for dia, quadra in data.items():
-                doc_ref = db.collection("quadras").document(dia)
-                doc_ref.set({"quadra": quadra})
-        except Exception as e:
-            st.warning(f"Erro ao salvar quadras no Firebase: {str(e)}. Salvando apenas localmente.")
-
-    # Sempre salva localmente como backup
-    try:
-        with open(quadras_file, "w") as f:
-            json.dump(data, f, indent=4)
-    except Exception as e:
-        st.error(f"Erro ao salvar arquivo local de quadras: {str(e)}")
 
 
 # Função para verificar se precisa resetar (domingo após 19h)
@@ -256,16 +165,7 @@ def reset_week_data():
                 db.collection("agenda").document(dia).set(DIA_ESTRUTURA.copy())
                 db.collection("quadras").document(dia).set({"quadra": None})
         except Exception as e:
-            st.warning(f"Erro ao resetar dados no Firebase: {str(e)}. Resetando apenas localmente.")
-
-    # Sempre salva localmente como backup
-    try:
-        with open(data_file, "w") as f:
-            json.dump(st.session_state.volei_agenda, f, indent=4)
-        with open(quadras_file, "w") as f:
-            json.dump(st.session_state.quadras, f, indent=4)
-    except Exception as e:
-        st.error(f"Erro ao salvar arquivos locais durante reset: {str(e)}")
+            st.warning(f"Erro ao resetar dados no Firebase: {str(e)}")
 
 
 # Inicialização dos dados
@@ -277,13 +177,11 @@ def initialize_data():
             loaded_data = load_data()
             # Garante que todos os dias estão presentes
             st.session_state.volei_agenda = {dia: loaded_data.get(dia, DIA_ESTRUTURA.copy()) for dia in DIAS_SEMANA}
-            save_data(st.session_state.volei_agenda)
 
         if 'quadras' not in st.session_state:
             st.session_state.quadras = load_quadras()
             if not st.session_state.quadras:
                 st.session_state.quadras = {dia: None for dia in DIAS_SEMANA}
-                save_quadras(st.session_state.quadras)
 
 
 # Função para remover jogador
@@ -309,13 +207,7 @@ def remove_name(day, name, role):
                 doc_ref = db.collection("agenda").document(day)
                 doc_ref.set(day_data)
             except Exception as e:
-                st.warning(f"Erro ao remover jogador no Firebase: {str(e)}. Atualizando apenas localmente.")
-
-        # Sempre salva localmente como backup
-        try:
-            save_data(st.session_state.volei_agenda)
-        except Exception as e:
-            st.error(f"Erro ao salvar arquivo local após remover jogador: {str(e)}")
+                st.warning(f"Erro ao remover jogador no Firebase: {str(e)}")
 
         st.rerun()
 
@@ -331,14 +223,7 @@ def remove_quadra(day):
             db.collection("quadras").document(day).set({"quadra": None})
             db.collection("agenda").document(day).update({"Quadra": None})
         except Exception as e:
-            st.warning(f"Erro ao remover quadra no Firebase: {str(e)}. Atualizando apenas localmente.")
-
-    # Sempre salva localmente como backup
-    try:
-        save_quadras(st.session_state.quadras)
-        save_data(st.session_state.volei_agenda)
-    except Exception as e:
-        st.error(f"Erro ao salvar arquivos locais após remover quadra: {str(e)}")
+            st.warning(f"Erro ao remover quadra no Firebase: {str(e)}")
 
     st.rerun()
 
@@ -421,15 +306,9 @@ try:
                             doc_ref.set(day_data)
                         except Exception as e:
                             st.warning(
-                                f"Erro ao adicionar jogador no Firebase: {str(e)}. Atualizando apenas localmente.")
+                                f"Erro ao adicionar jogador no Firebase: {str(e)}")
 
                     st.success(f"{name} adicionado à lista de {day}!")
-
-            # Sempre salva localmente como backup
-            try:
-                save_data(st.session_state.volei_agenda)
-            except Exception as e:
-                st.error(f"Erro ao salvar arquivo local após adicionar jogador: {str(e)}")
 
             st.rerun()
 
@@ -539,14 +418,7 @@ try:
                                     db.collection("agenda").document(day).update({"Quadra": quadra_selecionada})
                                 except Exception as e:
                                     st.warning(
-                                        f"Erro ao selecionar quadra no Firebase: {str(e)}. Atualizando apenas localmente.")
-
-                            # Sempre salva localmente como backup
-                            try:
-                                save_quadras(st.session_state.quadras)
-                                save_data(st.session_state.volei_agenda)
-                            except Exception as e:
-                                st.error(f"Erro ao salvar arquivos locais após selecionar quadra: {str(e)}")
+                                        f"Erro ao selecionar quadra no Firebase: {str(e)}")
 
                             st.rerun()
 
