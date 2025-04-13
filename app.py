@@ -11,7 +11,7 @@ st.set_page_config(
 )
 
 # Define o caminho existente para o secrets.toml
-USER_SECRETS_PATH = os.path.expanduser('~') + '\\\.streamlit\\secrets.toml'
+USER_SECRETS_PATH = os.path.expanduser('~'), '.streamlit', 'secrets.toml'
 
 # Mostra informações de debug
 st.write(f"Caminho do secrets.toml sendo usado: {USER_SECRETS_PATH}")
