@@ -5,11 +5,63 @@ import toml
 import datetime
 from datetime import timedelta
 
-# Configurações da página
 st.set_page_config(
     page_title="VOLEIZINHO PRA CURAR ONDE DÓI",
     page_icon=":volleyball:"
 )
+
+# Define o caminho existente para o secrets.toml
+USER_SECRETS_PATH = os.path.expanduser('~') + '\\\.streamlit\\secrets.toml'
+
+# Mostra informações de debug
+st.write(f"Caminho do secrets.toml sendo usado: {USER_SECRETS_PATH}")
+st.write(f"Arquivo existe? {os.path.exists(USER_SECRETS_PATH)}")
+
+
+# Força o Streamlit a usar o caminho correto
+if not hasattr(st, '_secrets'):
+    st._secrets = st.secrets  # Backup do original
+
+    # Sobrescreve com nossa implementação que usa o caminho do usuário
+    @property
+    def secrets(self):
+        if not hasattr(self, '_secrets_loaded'):
+            try:
+                import toml
+                if os.path.exists(USER_SECRETS_PATH):
+                    with open(USER_SECRETS_PATH) as f:
+                        self._secrets = toml.load(f)
+                        self._secrets['_file_path'] = USER_SECRETS_PATH
+                        st.success(f"Configurações carregadas de: {USER_SECRETS_PATH}")
+                else:
+                    self._secrets = {}
+                    st.warning(f"Arquivo secrets.toml não encontrado em: {USER_SECRETS_PATH}")
+            except Exception as e:
+                st.error(f"Erro ao carregar secrets.toml: {e}")
+                self._secrets = {}
+            self._secrets_loaded = True
+        return self._secrets
+    
+    st.secrets = secrets.__get__(st)
+
+# Mostrar o caminho onde o Streamlit procura o arquivo secrets.toml
+st.write("### Locais onde o Streamlit procura o arquivo secrets.toml:")
+# 1. Diretório .streamlit no diretório atual
+local_path = os.path.join(os.getcwd(), '.streamlit', 'secrets.toml')
+st.write(f"1. Diretório local: {local_path} (Existe: {os.path.exists(local_path)})")
+
+# 2. Variável de ambiente STREAMLIT_CONFIG_DIR
+config_dir = os.environ.get('STREAMLIT_CONFIG_DIR')
+if config_dir:
+    env_path = os.path.join(config_dir, 'secrets.toml')
+    st.write(f"2. Variável STREAMLIT_CONFIG_DIR: {env_path} (Existe: {os.path.exists(env_path)})")
+else:
+    st.write("2. Variável STREAMLIT_CONFIG_DIR não definida")
+
+# 3. Diretório .streamlit na pasta home do usuário
+home_dir = os.path.expanduser("~")
+home_path = os.path.join(home_dir, '\.streamlit', 'secrets.toml')
+st.write(f"3. Diretório home: {home_path} (Existe: {os.path.exists(home_path)})")
 
 # Configuração do Firebase com tratamento de erros
 firebase_initialized = False
@@ -17,15 +69,16 @@ try:
     import firebase_admin
     from firebase_admin import credentials, firestore
 
-    # Carrega credenciais do secrets.toml
     if 'firebase' in st.secrets:
-        cred = credentials.Certificate(st.secrets['firebase'])
-        if not firebase_admin._apps:
-            firebase_admin.initialize_app(cred)
-        db = firestore.client()
-        firebase_initialized = True
-    else:
-        st.error("Configuração do Firebase não encontrada nos secrets.")
+        firebase_config = dict(st.secrets["gcp_service_account"])
+        st.info("Configurações do Firebase carregadas de: st.secrets['gcp_service_account']")
+    firebase_config["private_key"] = firebase_config["private_key"].replace("\\n", "\n")
+    cred = credentials.Certificate(firebase_config)
+    if not firebase_admin._apps:
+        firebase_admin.initialize_app(cred)
+    db = firestore.client()
+    firebase_initialized = True
+
 except Exception as e:
     st.error(f"Erro ao inicializar o Firebase: {str(e)}")
 
@@ -44,6 +97,7 @@ DIA_ESTRUTURA = {
     'Substitutos': [],
     'Quadra': None
 }
+
 
 # Funções de carregamento/salvamento com fallback para arquivos locais
 def load_data():
@@ -86,6 +140,7 @@ def load_data():
     # Se tudo falhar, retorna estrutura padrão
     return {dia: DIA_ESTRUTURA.copy() for dia in DIAS_SEMANA}
 
+
 def save_data(data):
     # Tenta salvar no Firebase primeiro
     if firebase_initialized:
@@ -103,6 +158,7 @@ def save_data(data):
     except Exception as e:
         st.error(f"Erro ao salvar arquivo local: {str(e)}")
 
+
 def load_secrets():
     if os.path.exists("secrets.toml"):
         try:
@@ -112,12 +168,14 @@ def load_secrets():
             st.warning(f"Erro ao carregar secrets.toml: {str(e)}")
     return {}
 
+
 def save_secrets(data):
     try:
         with open("secrets.toml", "w") as f:
             toml.dump(data, f)
     except Exception as e:
         st.error(f"Erro ao salvar secrets.toml: {str(e)}")
+
 
 def delete_player(day, name, role):
     if firebase_initialized:
@@ -133,6 +191,7 @@ def delete_player(day, name, role):
         except Exception as e:
             st.warning(f"Erro ao excluir jogador do Firebase: {str(e)}")
     return False
+
 
 def load_quadras():
     # Tenta carregar do Firebase primeiro
@@ -169,6 +228,7 @@ def load_quadras():
     # Se tudo falhar, retorna estrutura padrão
     return {dia: None for dia in DIAS_SEMANA}
 
+
 def save_quadras(data):
     # Tenta salvar no Firebase primeiro
     if firebase_initialized:
@@ -185,6 +245,7 @@ def save_quadras(data):
             json.dump(data, f, indent=4)
     except Exception as e:
         st.error(f"Erro ao salvar arquivo local de quadras: {str(e)}")
+
 
 # Função para verificar se precisa resetar (domingo após 19h)
 def should_reset():
@@ -203,6 +264,7 @@ def should_reset():
             f.write(today_date)
         return True
     return False
+
 
 # Função para resetar os dados
 def reset_week_data():
@@ -227,6 +289,7 @@ def reset_week_data():
     except Exception as e:
         st.error(f"Erro ao salvar arquivos locais durante reset: {str(e)}")
 
+
 # Inicialização dos dados
 def initialize_data():
     if should_reset():
@@ -243,6 +306,7 @@ def initialize_data():
             if not st.session_state.quadras:
                 st.session_state.quadras = {dia: None for dia in DIAS_SEMANA}
                 save_quadras(st.session_state.quadras)
+
 
 # Função para remover jogador
 def remove_name(day, name, role):
@@ -277,6 +341,7 @@ def remove_name(day, name, role):
 
         st.rerun()
 
+
 # Função para remover quadra
 def remove_quadra(day):
     st.session_state.quadras[day] = None
@@ -298,6 +363,7 @@ def remove_quadra(day):
         st.error(f"Erro ao salvar arquivos locais após remover quadra: {str(e)}")
 
     st.rerun()
+
 
 # Inicializa os dados
 try:
@@ -376,7 +442,8 @@ try:
                             doc_ref = db.collection("agenda").document(day)
                             doc_ref.set(day_data)
                         except Exception as e:
-                            st.warning(f"Erro ao adicionar jogador no Firebase: {str(e)}. Atualizando apenas localmente.")
+                            st.warning(
+                                f"Erro ao adicionar jogador no Firebase: {str(e)}. Atualizando apenas localmente.")
 
                     st.success(f"{name} adicionado à lista de {day}!")
 
@@ -406,7 +473,7 @@ try:
                     st.write(f"**Titulares ({len(data['Titulares'])}/15):**")
                     for i, name in enumerate(data['Titulares']):
                         cols = st.columns([4, 1])
-                        cols[0].write(f"{i+1}. {name}")
+                        cols[0].write(f"{i + 1}. {name}")
                         if cols[1].button("❌", key=f"rem_tit_{day}_{name}"):
                             st.session_state[f"show_confirm_tit_{day}_{name}"] = True
 
@@ -425,7 +492,7 @@ try:
                     st.write(f"**Reservas ({len(data['Reservas'])}/3):**")
                     for i, name in enumerate(data['Reservas']):
                         cols = st.columns([4, 1])
-                        cols[0].write(f"{i+1}. {name}")
+                        cols[0].write(f"{i + 1}. {name}")
                         if cols[1].button("❌", key=f"rem_res_{day}_{name}"):
                             st.session_state[f"show_confirm_res_{day}_{name}"] = True
 
@@ -443,7 +510,7 @@ try:
                     st.write("**Substitutos:**")
                     for i, name in enumerate(data['Substitutos']):
                         cols = st.columns([4, 1])
-                        cols[0].write(f"{i+1}. {name}")
+                        cols[0].write(f"{i + 1}. {name}")
                         if cols[1].button("❌", key=f"rem_sub_{day}_{name}"):
                             st.session_state[f"show_confirm_sub_{day}_{name}"] = True
 
@@ -493,7 +560,8 @@ try:
                                     db.collection("quadras").document(day).set({"quadra": quadra_selecionada})
                                     db.collection("agenda").document(day).update({"Quadra": quadra_selecionada})
                                 except Exception as e:
-                                    st.warning(f"Erro ao selecionar quadra no Firebase: {str(e)}. Atualizando apenas localmente.")
+                                    st.warning(
+                                        f"Erro ao selecionar quadra no Firebase: {str(e)}. Atualizando apenas localmente.")
 
                             # Sempre salva localmente como backup
                             try:
