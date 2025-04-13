@@ -11,7 +11,7 @@ st.set_page_config(
 )
 
 # Define o caminho existente para o secrets.toml
-USER_SECRETS_PATH = os.path.expanduser('~'), '.streamlit', 'secrets.toml'
+USER_SECRETS_PATH = os.path.expanduser('~') + '\\.streamlit' + '\\secrets.toml'
 
 # Mostra informações de debug
 # st.write(f"Caminho do secrets.toml sendo usado: {USER_SECRETS_PATH}")
@@ -21,6 +21,7 @@ USER_SECRETS_PATH = os.path.expanduser('~'), '.streamlit', 'secrets.toml'
 # Força o Streamlit a usar o caminho correto
 if not hasattr(st, '_secrets'):
     st._secrets = st.secrets  # Backup do original
+
 
     # Sobrescreve com nossa implementação que usa o caminho do usuário
     @property
@@ -42,26 +43,27 @@ if not hasattr(st, '_secrets'):
             self._secrets_loaded = True
         return self._secrets
 
+
     st.secrets = secrets.__get__(st)
 
-# Mostrar o caminho onde o Streamlit procura o arquivo secrets.toml
-st.write("### Locais onde o Streamlit procura o arquivo secrets.toml:")
-# 1. Diretório .streamlit no diretório atual
-local_path = os.path.join(os.getcwd(), '.streamlit', 'secrets.toml')
-st.write(f"1. Diretório local: {local_path} (Existe: {os.path.exists(local_path)})")
-
-# 2. Variável de ambiente STREAMLIT_CONFIG_DIR
-config_dir = os.environ.get('STREAMLIT_CONFIG_DIR')
-if config_dir:
-    env_path = os.path.join(config_dir, 'secrets.toml')
-    st.write(f"2. Variável STREAMLIT_CONFIG_DIR: {env_path} (Existe: {os.path.exists(env_path)})")
-else:
-    st.write("2. Variável STREAMLIT_CONFIG_DIR não definida")
-
-# 3. Diretório .streamlit na pasta home do usuário
-home_dir = os.path.expanduser("~")
-home_path = os.path.join(home_dir, '\.streamlit', 'secrets.toml')
-st.write(f"3. Diretório home: {home_path} (Existe: {os.path.exists(home_path)})")
+# # Mostrar o caminho onde o Streamlit procura o arquivo secrets.toml
+# st.write("### Locais onde o Streamlit procura o arquivo secrets.toml:")
+# # 1. Diretório .streamlit no diretório atual
+# local_path = os.path.join(os.getcwd(), '.streamlit', 'secrets.toml')
+# st.write(f"1. Diretório local: {local_path} (Existe: {os.path.exists(local_path)})")
+#
+# # 2. Variável de ambiente STREAMLIT_CONFIG_DIR
+# config_dir = os.environ.get('STREAMLIT_CONFIG_DIR')
+# if config_dir:
+#     env_path = os.path.join(config_dir, 'secrets.toml')
+#     st.write(f"2. Variável STREAMLIT_CONFIG_DIR: {env_path} (Existe: {os.path.exists(env_path)})")
+# else:
+#     st.write("2. Variável STREAMLIT_CONFIG_DIR não definida")
+#
+# # 3. Diretório .streamlit na pasta home do usuário
+# home_dir = os.path.expanduser("~")
+# home_path = os.path.join(home_dir, '\.streamlit', 'secrets.toml')
+# st.write(f"3. Diretório home: {home_path} (Existe: {os.path.exists(home_path)})")
 
 # Configuração do Firebase com tratamento de erros
 firebase_initialized = False
@@ -69,7 +71,7 @@ try:
     import firebase_admin
     from firebase_admin import credentials, firestore
 
-    firebase_config = dict(st.secrets["firebase"])
+    firebase_config = dict(st.secrets["gcp_service_account"])
     st.info("Configurações do Firebase carregadas de: st.secrets['firebase']")
     firebase_config["private_key"] = firebase_config["private_key"].replace("\\n", "\n")
     cred = credentials.Certificate(firebase_config)
@@ -366,7 +368,10 @@ def remove_quadra(day):
 
 # Inicializa os dados
 try:
-    initialize_data()
+    if firebase_initialized:
+        db = firestore.client()
+    else:
+        initialize_data()
 except Exception as e:
     st.error(f"Erro ao inicializar os dados: {str(e)}")
     # Garante que os dados mínimos estejam disponíveis mesmo em caso de erro
