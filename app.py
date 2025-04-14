@@ -1,5 +1,6 @@
 import streamlit as st
 import datetime
+import os
 from pathlib import Path
 
 st.set_page_config(
@@ -133,14 +134,13 @@ def should_reset():
         last_reset_file = "last_reset_date.txt"
         today_date = now.date().isoformat()
 
-        # if os.path.exists(last_reset_file):
-        #     with open(last_reset_file, "r") as f:
-        #         last_reset = f.read().strip()
-        #     if last_reset == today_date:
-        #         return False
+        if os.path.exists(last_reset_file):
+            with open(last_reset_file, "r") as f:
+                last_reset = f.read().strip()
+            if last_reset == today_date:
+                return False
+        
 
-        with open(last_reset_file, "w") as f:
-            f.write(today_date)
         return True
     return False
 
@@ -154,8 +154,8 @@ def reset_week_data():
     if firebase_initialized:
         try:
             for dia in DIAS_SEMANA:
-                db.collection("agenda").document(dia).set(DIA_ESTRUTURA.copy())
-                db.collection("quadras").document(dia).set({"quadra": None})
+                db.collection("ag1enda").document(dia).set(DIA_ESTRUTURA.copy())
+                db.collection("quadras").document("quadras").set({dia: None})
         except Exception as e:
             st.warning(f"Erro ao resetar dados no Firebase: {str(e)}")
 
@@ -212,7 +212,7 @@ def remove_quadra(day):
     # Atualiza no Firebase
     if firebase_initialized:
         try:
-            db.collection("quadras").document(day).set({"quadra": None})
+            db.collection("quadras").document("quadras").set({day: None})
             db.collection("agenda").document(day).update({"Quadra": None})
         except Exception as e:
             st.warning(f"Erro ao remover quadra no Firebase: {str(e)}")
@@ -221,11 +221,11 @@ def remove_quadra(day):
 
 
 # Inicializa os dados
-# try:
-#         initialize_data()
-# except Exception as e:
-#     st.error(f"Erro ao inicializar os dados: {str(e)}")
-#     # Garante que os dados mínimos estejam disponíveis mesmo em caso de erro
+try:
+        initialize_data()
+except Exception as e:
+    st.error(f"Erro ao inicializar os dados: {str(e)}")
+    # Garante que os dados mínimos estejam disponíveis mesmo em caso de erro
 
 # Layout principal com abas
 try:
@@ -403,13 +403,13 @@ try:
                             # Atualiza no Firebase
                             if firebase_initialized:
                                 try:
-                                    db.collection("quadras").document(day).set({"quadra": quadra_selecionada})
+                                    db.collection("quadras").document("quadras").set({day: quadra_selecionada})
                                     db.collection("agenda").document(day).update({"Quadra": quadra_selecionada})
                                 except Exception as e:
                                     st.warning(
                                         f"Erro ao selecionar quadra no Firebase: {str(e)}")
 
-                            st.rerun()
+                            # st.rerun()
 
         # Botão de reset manual com confirmação
         if st.button("Resetar Todas as Listas (Apenas Admin)", key="botao_reset_admin"):
