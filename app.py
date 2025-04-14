@@ -154,7 +154,7 @@ def reset_week_data():
     if firebase_initialized:
         try:
             for dia in DIAS_SEMANA:
-                db.collection("ag1enda").document(dia).set(DIA_ESTRUTURA.copy())
+                db.collection("agenda").document(dia).set(DIA_ESTRUTURA.copy())
                 db.collection("quadras").document("quadras").set({dia: None})
         except Exception as e:
             st.warning(f"Erro ao resetar dados no Firebase: {str(e)}")
