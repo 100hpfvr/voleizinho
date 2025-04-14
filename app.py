@@ -88,16 +88,12 @@ def load_data():
 
             # Se conseguiu carregar dados do Firebase
             if agenda:
-                # Garante que todos os dias estão presentes
-                for dia in DIAS_SEMANA:
-                    if dia not in agenda:
-                        agenda[dia] = DIA_ESTRUTURA.copy()
                 return agenda
         except Exception as e:
             st.error(f"Erro ao carregar dados do Firebase: {str(e)}")
 
-    # Se não conseguiu carregar do Firebase, retorna estrutura padrão
-    return {dia: DIA_ESTRUTURA.copy() for dia in DIAS_SEMANA}
+    # Se não conseguiu carregar do Firebase, retorna None
+    return None
 
 
 def save_data(data):
@@ -122,16 +118,12 @@ def load_quadras():
 
             # Se conseguiu carregar dados do Firebase
             if quadras:
-                # Garante que todos os dias estão presentes
-                for dia in DIAS_SEMANA:
-                    if dia not in quadras:
-                        quadras[dia] = None
                 return quadras
         except Exception as e:
             st.error(f"Erro ao carregar quadras do Firebase: {str(e)}")
 
-    # Se não conseguiu carregar do Firebase, retorna estrutura padrão
-    return {dia: None for dia in DIAS_SEMANA}
+    # Se não conseguiu carregar do Firebase, retorna None
+    return None
 
 
 # Função para verificar se precisa resetar (domingo após 19h)
@@ -141,11 +133,11 @@ def should_reset():
         last_reset_file = "last_reset_date.txt"
         today_date = now.date().isoformat()
 
-        if os.path.exists(last_reset_file):
-            with open(last_reset_file, "r") as f:
-                last_reset = f.read().strip()
-            if last_reset == today_date:
-                return False
+        # if os.path.exists(last_reset_file):
+        #     with open(last_reset_file, "r") as f:
+        #         last_reset = f.read().strip()
+        #     if last_reset == today_date:
+        #         return False
 
         with open(last_reset_file, "w") as f:
             f.write(today_date)
@@ -175,13 +167,13 @@ def initialize_data():
     else:
         if 'volei_agenda' not in st.session_state:
             loaded_data = load_data()
-            # Garante que todos os dias estão presentes
-            st.session_state.volei_agenda = {dia: loaded_data.get(dia, DIA_ESTRUTURA.copy()) for dia in DIAS_SEMANA}
+            if loaded_data:
+                st.session_state.volei_agenda = {dia: loaded_data.get(dia, DIA_ESTRUTURA.copy()) for dia in DIAS_SEMANA}
 
         if 'quadras' not in st.session_state:
-            st.session_state.quadras = load_quadras()
-            if not st.session_state.quadras:
-                st.session_state.quadras = {dia: None for dia in DIAS_SEMANA}
+            loaded_quadras = load_quadras()
+            if loaded_quadras:
+                st.session_state.quadras = loaded_quadras
 
 
 # Função para remover jogador
@@ -309,9 +301,6 @@ try:
                                 f"Erro ao adicionar jogador no Firebase: {str(e)}")
 
                     st.success(f"{name} adicionado à lista de {day}!")
-
-            st.rerun()
-
         # Exibição das listas por dia
         tabs = st.tabs(DIAS_SEMANA)
 
