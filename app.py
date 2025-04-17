@@ -9,33 +9,24 @@ st.set_page_config(
 )
 USER_SECRETS_PATH = Path.home() / '.streamlit' / 'secrets.toml'
 
-# Força o Streamlit a usar o caminho correto
-if not hasattr(st, '_secrets'):
-    st._secrets = st.secrets  # Backup do original
-
-    # Sobrescreve com nossa implementação que usa o caminho do usuário
-    @property
-    def secrets(self):
-        if not hasattr(self, '_secrets_loaded'):
-            try:
-                import toml
-                # if os.path.exists(USER_SECRETS_PATH):
-                with open(USER_SECRETS_PATH) as f:
-                    self._secrets = toml.load(f)
-                    self._secrets['_file_path'] = USER_SECRETS_PATH
-                    st.success(f"Configurações carregadas de: {USER_SECRETS_PATH}")
-                # else:
-                #     self._secrets = {}
-                #     st.warning(f"Arquivo secrets.toml não encontrado em: {USER_SECRETS_PATH}")
-            except Exception as e:
-                st.error(f"Erro ao carregar secrets.toml: {e}")
-                self._secrets = {}
-            self._secrets_loaded = True
-        return self._secrets
-
-
-    st.secrets = secrets.__get__(st)
-
+# Comentando a sobrescrita do secrets para usar o padrão do Streamlit
+# if not hasattr(st, '_secrets'):
+#     st._secrets = st.secrets  # Backup do original
+#     @property
+#     def secrets(self):
+#         if not hasattr(self, '_secrets_loaded'):
+#             try:
+#                 import toml
+#                 with open(USER_SECRETS_PATH) as f:
+#                     self._secrets = toml.load(f)
+#                     self._secrets['_file_path'] = USER_SECRETS_PATH
+#                     st.success(f"Configurações carregadas de: {USER_SECRETS_PATH}")
+#             except Exception as e:
+#                 st.error(f"Erro ao carregar secrets.toml: {e}")
+#                 self._secrets = {}
+#             self._secrets_loaded = True
+#         return self._secrets
+#
 
 # Configuração do Firebase com tratamento de erros
 firebase_initialized = False
